@@ -9,10 +9,15 @@ function handler(req: Request): Response {
   } catch {
     return new Response("request isn't trying to upgrade to websocket.");
   }
-  socket.onopen = () => console.log("socket opened");
+  socket.onopen = () => {
+    console.log("socket opened");
+    setInterval(() => {
+      socket.send(`[${new Date().toString()}] Greeting from Deno Deploy`);
+    }, 2000)
+  }
   socket.onmessage = (e) => {
     console.log("socket message:", e.data);
-    socket.send(new Date().toString());
+    socket.send(e.data);
   };
   socket.onerror = (e) => console.log("socket errored:", e);
   socket.onclose = () => console.log("socket closed");

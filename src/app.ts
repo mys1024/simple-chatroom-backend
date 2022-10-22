@@ -76,16 +76,19 @@ function setupWebSocket(ws: WebSocket, chatroom: string) {
 export default function app(req: Request) {
   let response: Response;
   let socket: WebSocket;
-  // TODO: chatroom name
-
+  // parse chatroom
+  const chatroom = /^http(s):\/\/[^\/]+\/(?<chatroom>[^\/]+)$/
+    .exec(req.url)?.groups?.chatroom
+  if (!chatroom)
+    return new Response("request doesn't specify a chatroom.", { status: 400 });
   // upgrade to WebSocket
   try {
     ({ response, socket } = Deno.upgradeWebSocket(req));
   } catch {
-    return new Response("request isn't trying to upgrade to websocket.");
+    return new Response("request isn't trying to upgrade to websocket.", { status: 400 });
   }
   // setup WebSocket
-  setupWebSocket(socket, "test")
+  setupWebSocket(socket, chatroom)
   // http response
   return response;
 }

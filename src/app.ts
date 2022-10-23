@@ -74,7 +74,11 @@ function setupWebSocket(ws: WebSocket, chatroom: string) {
     forwardMessage(chatroom, msg, wsSet, ws, broadcastChannel);
   };
   // handle error
-  ws.onerror = (e) => console.log("socket errored: ", e);
+  ws.onerror = (e) => {
+    // deno-lint-ignore no-explicit-any
+    const message = (e as any)?.message;
+    console.log("socket errored: ", message ? message : e);
+  };
 }
 
 export default function app(req: Request) {

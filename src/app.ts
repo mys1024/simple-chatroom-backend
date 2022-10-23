@@ -1,17 +1,11 @@
 import { Message } from "./types.ts";
-import { APP_MODE, APP_ON_DENO_DEPLOY, HTTP_PORT } from "./config.ts";
+import { APP_ON_DENO_DEPLOY } from "./config.ts";
 import { ignoreErrorSync, isBroadcastMessage, isMessage } from "./util.ts";
-
-console.info(`APP_MODE: ${APP_MODE}`);
-console.info(`APP_ON_DENO_DEPLOY: ${APP_ON_DENO_DEPLOY}`);
-console.info(`HTTP_PORT: ${HTTP_PORT}`);
 
 const broadcastChannel = APP_ON_DENO_DEPLOY
   ? new BroadcastChannel("chat")
   : undefined;
 const chatroomToWsArr = new Map<string, Set<WebSocket>>();
-
-console.info(broadcastChannel);
 
 function forwardMessage(
   chatroom: string,
@@ -47,6 +41,7 @@ if (broadcastChannel) {
       return;
     }
     const msg = ignoreErrorSync(() => JSON.parse(data));
+    console.info(msg, isBroadcastMessage(msg));
     if (!isBroadcastMessage(msg)) {
       return;
     }

@@ -1,54 +1,29 @@
-import { Message } from "./types.ts";
 import { APP_ON_DENO_DEPLOY } from "./config.ts";
-import { ignoreErrorSync, isBroadcastMessage, isMessage } from "./util.ts";
+import {
+  forwardToChannel,
+  forwardToWsSet,
+  parseBroadcastMessage,
+  parseMessage,
+} from "./util.ts";
 
+const chatroomToWsArr = new Map<string, Set<WebSocket>>();
 const broadcastChannel = APP_ON_DENO_DEPLOY
   ? new BroadcastChannel("chat")
   : undefined;
-const chatroomToWsArr = new Map<string, Set<WebSocket>>();
-
-function forwardMessage(
-  chatroom: string,
-  msg: Message,
-  wsSet?: Set<WebSocket>,
-  from?: WebSocket,
-  ch?: BroadcastChannel,
-) {
-  // broadcast forward
-  ch?.postMessage(JSON.stringify({ chatroom, ...msg }));
-  // local forward
-  if (!wsSet) {
-    return;
-  }
-  for (const otherWs of wsSet) {
-    if (otherWs === from) {
-      continue;
-    }
-    if (otherWs.readyState === WebSocket.CLOSED) {
-      wsSet.delete(otherWs);
-      continue;
-    }
-    otherWs.send(JSON.stringify(msg));
-  }
-}
 
 if (broadcastChannel) {
   broadcastChannel.onmessage = (evt) => {
-    const data = evt.data;
-    console.info(data);
     // parse broadcast message
-    if (typeof data !== "string") {
+    const broadcastMsg = parseBroadcastMessage(evt.data);
+    if (!broadcastMsg) {
       return;
     }
-    const msg = ignoreErrorSync(() => JSON.parse(data));
-    console.info(msg, isBroadcastMessage(msg));
-    if (!isBroadcastMessage(msg)) {
-      return;
-    }
-    const { chatroom, sender, body } = msg;
-    // forward
+    const { chatroom, sender, body } = broadcastMsg;
+    // forward to WS set
     const wsSet = chatroomToWsArr.get(chatroom);
-    forwardMessage(chatroom, { sender, body }, wsSet);
+    if (wsSet) {
+      forwardToWsSet({ sender, body }, wsSet);
+    }
   };
 }
 
@@ -62,18 +37,20 @@ function setupWebSocket(ws: WebSocket, chatroom: string) {
   wsSet.add(ws);
   // handle message
   ws.onmessage = (evt) => {
-    const data = evt.data;
     // parse message
-    if (typeof data !== "string") {
+    const msg = parseMessage(evt.data);
+    if (!msg) {
       return;
     }
-    const msg = ignoreErrorSync(() => JSON.parse(data));
-    if (!isMessage(msg)) {
-      return;
+    // forward to broadcast channel
+    if (broadcastChannel) {
+      forwardToChannel({ chatroom, ...msg }, broadcastChannel);
     }
-    // forward
+    // forward to WS set
     const wsSet = chatroomToWsArr.get(chatroom);
-    forwardMessage(chatroom, msg, wsSet, ws, broadcastChannel);
+    if (wsSet) {
+      forwardToWsSet(msg, wsSet);
+    }
   };
   // handle error
   ws.onerror = (e) => {

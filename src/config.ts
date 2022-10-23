@@ -3,8 +3,8 @@ import { config as _config } from "./deps.ts";
 const config = await _config();
 
 export const APP_MODE: "dev" | "prod" = (
-  Deno.env.get("APP_MODE") || config["APP_MODE"] || "dev"
-) === "dev"
+    Deno.env.get("APP_MODE") || config["APP_MODE"] || "dev"
+  ) === "dev"
   ? "dev"
   : "prod";
 
